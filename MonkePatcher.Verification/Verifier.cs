@@ -4,13 +4,13 @@ using System.Security.Cryptography;
 
 namespace MonkePatcher.Verification
 {
-    public class QModVerifier
+    public class Verifier
     {
         private Dictionary<string, ModHashes>? hashes;
 
         private QMod qmod;
 
-        public QModVerifier(QMod qmod)
+        public Verifier(QMod qmod)
         {
             this.qmod = qmod;
         }
@@ -40,7 +40,7 @@ namespace MonkePatcher.Verification
         /// Verifies if the mod matches the verified hashes
         /// </summary>
         /// <returns><c>true</c> if the QMod matches known hashes, <c>false</c> otherwise</returns>
-        public bool Verify()
+        public bool VerifyQMod()
         {
             
             // I'm not a fan of this code. I can't get a stream from a ZipArchive
@@ -49,6 +49,10 @@ namespace MonkePatcher.Verification
             string id = qmod.Id;
 
             string tempPath = Path.Combine(QModVerificationPath, id);
+
+            if (!Directory.Exists(tempPath))
+                Directory.CreateDirectory(tempPath);
+
             qmod.Archive.ExtractToDirectory(tempPath);
 
             string qmodTempArchive = Path.Combine(QModVerificationPath, $"{id}.qmod");
@@ -63,6 +67,22 @@ namespace MonkePatcher.Verification
             string? qmodHash = md5.ComputeHash(fs).ToString();
 
             return qmodHash == verifiedHash;
+        }
+
+        public bool VerifySO(string soName)
+        {
+            var entry = qmod.Archive.GetEntry(soName);
+            if (entry == null) return false;
+
+            Stream soStream = entry.Open();
+
+            string? verifiedHash = Hashes[qmod.Id].SOHash;
+            if (verifiedHash == null) return false;
+
+            using MD5 md5 = MD5.Create();
+            string? soHash = md5.ComputeHash(soStream).ToString();
+
+            return soHash == verifiedHash;
         }
     }
 }
