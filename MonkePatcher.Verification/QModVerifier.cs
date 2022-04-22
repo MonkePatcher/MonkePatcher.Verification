@@ -15,6 +15,11 @@ namespace MonkePatcher.Verification
             this.qmod = qmod;
         }
 
+        public static string QModVerificationPath
+        {
+            get => Path.Combine(Path.GetTempPath(), "MonkePatcher", "Verification");
+        }
+
         public Dictionary<string, ModHashes> Hashes
         {
             get
@@ -37,15 +42,27 @@ namespace MonkePatcher.Verification
         /// <returns><c>true</c> if the QMod matches known hashes, <c>false</c> otherwise</returns>
         public bool Verify()
         {
+            
+            // I'm not a fan of this code. I can't get a stream from a ZipArchive
+            // so I had to write this monstrosity
+
             string id = qmod.Id;
 
-            string? verifiedHash = Hashes[id].QModHash;
+            string tempPath = Path.Combine(QModVerificationPath, id);
+            qmod.Archive.ExtractToDirectory(tempPath);
 
+            string qmodTempArchive = Path.Combine(QModVerificationPath, $"{id}.qmod");
+            ZipFile.CreateFromDirectory(tempPath, qmodTempArchive);
+
+            FileStream fs = File.OpenRead(qmodTempArchive);
+
+            string? verifiedHash = Hashes[id].QModHash;
             if (verifiedHash == null) return false;
 
-            using var md5 = MD5.Create();
+            using MD5 md5 = MD5.Create();
+            string? qmodHash = md5.ComputeHash(fs).ToString();
 
-            
+            return qmodHash == verifiedHash;
         }
     }
 }
